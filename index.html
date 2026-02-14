@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Life Simulator - Damian Kita</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-magenta: #ff00ff;
+            --neon-yellow: #ffff00;
+            --neon-green: #00ff88;
+            --dark-bg: #0a0a0f;
+            --panel-bg: #1a1a2e;
+            --text-glow: 0 0 10px currentColor;
+        }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background: var(--dark-bg);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+        
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        #header {
+            background: linear-gradient(90deg, var(--panel-bg) 0%, #16213e 100%);
+            padding: 10px 15px;
+            border-bottom: 3px solid var(--neon-cyan);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 245, 255, 0.3);
+            z-index: 100;
+        }
+        
+        #game-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(12px, 3vw, 18px);
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px var(--neon-cyan);
+            letter-spacing: 2px;
+        }
+        
+        #author-info {
+            font-size: clamp(10px, 2vw, 14px);
+            color: var(--neon-magenta);
+            text-decoration: none;
+            transition: all 0.3s;
+            text-shadow: 0 0 10px var(--neon-magenta);
+        }
+        
+        #author-info:hover {
+            color: var(--neon-yellow);
+            text-shadow: 0 0 20px var(--neon-yellow);
+        }
+        
+        /* Main Game Area */
+        #main-area {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Left Panel - Stats */
+        #stats-panel {
+            width: 200px;
+            background: var(--panel-bg);
+            border-right: 2px solid var(--neon-magenta);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            transition: transform 0.3s;
+        }
+        
+        .stat-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 8px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--neon-cyan);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-bar {
+            height: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #333;
+        }
+        
+        .stat-fill {
+            height: 100%;
+            transition: width 0.5s ease, background-color 0.3s;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .stat-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #000;
+            z-index: 1;
+        }
+        
+        /* Center - Game World */
+        #game-world {
+            flex: 1;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a3e 50%, #0f0f1e 100%);
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        
+        #room {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(80vw, 600px);
+            height: min(60vh, 400px);
+            background: linear-gradient(135deg, #2a2a4e 0%, #1a1a3e 100%);
+            border: 4px solid var(--neon-cyan);
+            border-radius: 20px;
+            box-shadow: 
+                0 0 50px rgba(0, 245, 255, 0.2),
+                inset 0 0 100px rgba(0, 0, 0, 0.5);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            padding: 20px;
+        }
+        
+        .room-zone {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .room-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, rgba(0,245,255,0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .room-zone:hover::before, .room-zone.active::before {
+            opacity: 1;
+        }
+        
+        .room-zone:hover, .room-zone.active {
+            border-color: var(--neon-yellow);
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 255, 0, 0.3);
+        }
+        
+        .zone-icon {
+            font-size: clamp(30px, 5vw, 50px);
+            margin-bottom: 5px;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        .zone-name {
+            font-size: clamp(12px, 2vw, 16px);
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        /* Character */
+        #character {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--neon-magenta) 0%, #ff0080 100%);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 
+                0 0 30px var(--neon-magenta),
+                inset 0 0 20px rgba(255,255,255,0.3);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+        }
+        
+        #character.moving {
+            animation: bounce 0.5s infinite alternate;
+        }
+        
+        @keyframes bounce {
+            from { transform: translateY(0) scale(1); }
+            to { transform: translateY(-10px) scale(1.1); }
+        }
+        
+        #character.speaking::after {
+            content: '💭';
+            position: absolute;
+            top: -40px;
+            right: -20px;
+            font-size: 24px;
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        /* Right Panel - Actions */
+        #actions-panel {
+            width: 220px;
+            background: var(--panel-bg);
+            border-left: 2px solid var(--neon-green);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+        
+        .panel-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            color: var(--neon-green);
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+        
+        .action-btn {
+            background: linear-gradient(135deg, rgba(0,255,136,0.2) 0%, rgba(0,255,136,0.05) 100%);
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,255,136,0.4), transparent);
+            transition: left 0.5s;
+        }
+        
+        .action-btn:hover::before, .action-btn:active::before {
+            left: 100%;
+        }
+        
+        .action-btn:hover, .action-btn:active {
+            background: rgba(0,255,136,0.3);
+            box-shadow: 0 0 20px rgba(0,255,136,0.4);
+            transform: translateX(5px);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #666;
+            color: #666;
+        }
+        
+        .action-icon {
+            font-size: 20px;
+        }
+        
+        /* Log Panel */
+        #game-log {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(90%, 400px);
+            max-height: 150px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid var(--neon-yellow);
+            border-radius: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 14px;
+            z-index: 40;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-left: 3px solid var(--neon-cyan);
+            padding-left: 10px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        /* Bottom Controls */
+        #bottom-controls {
+            height: 70px;
+            background: linear-gradient(90deg, var(--panel-bg) 0%, #16213e 100%);
+            border-top: 3px solid var(--neon-yellow);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 0 20px;
+        }
+        
+        .control-btn {
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-btn:hover, .control-btn:active {
+            background: var(--neon-cyan);
+            color: var(--dark-bg);
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+        
+        #music-toggle.active {
+            background: var(--neon-magenta);
+            border-color: var(--neon-magenta);
+            color: #fff;
+        }
+        
+        /* Mobile Menu Toggle */
+        #mobile-menu {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: var(--neon-magenta);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 200;
+            box-shadow: 0 0 30px var(--neon-magenta);
+            transition: transform 0.3s;
+        }
+        
+        #mobile-menu:active {
+            transform: scale(0.9);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            #stats-panel, #actions-panel {
+                position: fixed;
+                top: 60px;
+                bottom: 70px;
+                width: 80%;
+                max-width: 300px;
+                z-index: 150;
+                transform: translateX(-100%);
+            }
+            
+            #stats-panel {
+                left: 0;
+                border-right: 3px solid var(--neon-cyan);
+            }
+            
+            #actions-panel {
+                right: 0;
+                left: auto;
+                transform: translateX(100%);
+                border-left: 3px solid var(--neon-green);
+            }
+            
+            #stats-panel.open {
+                transform: translateX(0);
+            }
+            
+            #actions-panel.open {
+                transform: translateX(0);
+            }
+            
+            #mobile-menu {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            #room {
+                width: 95vw;
+                height: 50vh;
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+            }
+            
+            .zone-name {
+                font-size: 10px;
+            }
+            
+            #game-log {
+                bottom: 100px;
+                font-size: 12px;
+            }
+        }
+        
+        /* Particles */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            animation: particle-float 3s ease-out forwards;
+            font-size: 20px;
+            z-index: 100;
+        }
+        
+        @keyframes particle-float {
+            0% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1) rotate(0deg); 
+            }
+            100% { 
+                opacity: 0; 
+                transform: translateY(-100px) scale(0.5) rotate(360deg); 
+            }
+        }
+        
+        /* Start Screen */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a3e 50%, #0a0a0f 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            gap: 30px;
+        }
+        
+        #start-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(20px, 5vw, 40px);
+            color: var(--neon-cyan);
+            text-align: center;
+            text-shadow: 0 0 30px var(--neon-cyan);
+            line-height: 1.5;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        #start-btn {
+            background: linear-gradient(135deg, var(--neon-magenta) 0%, #ff0080 100%);
+            border: 4px solid #fff;
+            color: #fff;
+            padding: 20px 40px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(12px, 3vw, 16px);
+            cursor: pointer;
+            border-radius: 50px;
+            box-shadow: 0 0 40px var(--neon-magenta);
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        
+        #start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 60px var(--neon-magenta);
+        }
+        
+        .instructions {
+            text-align: center;
+            color: var(--neon-yellow);
+            font-size: clamp(14px, 3vw, 18px);
+            max-width: 600px;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+        
+        /* Overlay for mobile panels */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 70px;
+            background: rgba(0,0,0,0.7);
+            z-index: 140;
+        }
+        
+        @media (max-width: 768px) {
+            #overlay.show {
+                display: block;
+            }
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1 id="start-title">PIXEL LIFE<br>SIMULATOR</h1>
+        <p class="instructions">
+            Załóż rodzinę, zarządzaj potrzebami swojej postaci i eksploruj neonowy świat!
+            <br><br>
+            🎮 Klikaj strefy lub przyciski akcji
+            <br>
+            📱 Dostępne na komputerach i mobile
+        </p>
+        <button id="start-btn" onclick="startGame()">▶ ROZPOCZNIJ GRĘ</button>
+        <p style="color: var(--neon-green); font-size: 12px; margin-top: 20px;">
+            Muzyka: Chiptune / 8-bit Style
+        </p>
+    </div>
+
+    <div id="game-container" style="display: none;">
+        <!-- Header -->
+        <div id="header">
+            <div id="game-title">◄ PIXEL LIFE ►</div>
+            <a href="https://linktr.ee/kitadamian" target="_blank" id="author-info" title="Odwiedź profil autora">
+                by Damian Kita ↗
+            </a>
+        </div>
+
+        <!-- Main Area -->
+        <div id="main-area">
+            <!-- Stats Panel -->
+            <div id="stats-panel">
+                <div style="font-family: 'Press Start 2P'; font-size: 10px; color: var(--neon-cyan); margin-bottom: 15px; text-align: center;">
+                    STATYSTYKI
+                </div>
+                
+                <div class="stat-box">
+                    <div class="stat-label">❤️ Zdrowie</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill" id="health-bar" style="width: 80%; background: linear-gradient(90deg, #ff0040, #ff4080);"></div>
+                        <span class="stat-value" id="health-val">80%</span>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-label">⚡ Energia</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill" id="energy-bar" style="width: 100%; background: linear-gradient(90deg, #ffff00, #ffdd00);"></div>
+                        <span class="stat-value" id="energy-val">100%</span>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-label">🍔 Głód</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill" id="hunger-bar" style="width: 50%; background: linear-gradient(90deg, #ff8800, #ffaa00);"></div>
+                        <span class="stat-value" id="hunger-val">50%</span>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-label">😊 Szczęście</div>
+                    <div class="stat-bar">
+                        <div class="stat-fill" id="fun-bar" style="width: 70%; background: linear-gradient(90deg, #00ff88, #00ffcc);"></div>
+                        <span class="stat-value" id="fun-val">70%</span>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-label">💰 Pieniądze</div>
+                    <div style="font-size: 24px; color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); margin-top: 5px;">
+                        <span id="money">1000</span> $
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-label">📅 Dzień</div>
+                    <div style="font-size: 20px; color: var(--neon-cyan); margin-top: 5px;">
+                        <span id="day">1</span>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-label">⏰ Czas</div>
+                    <div style="font-size: 20px; color: var(--neon-magenta); margin-top: 5px;">
+                        <span id="time">08:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game World -->
+            <div id="game-world">
+                <div id="room">
+                    <div class="room-zone" data-zone="kitchen" onclick="moveToZone('kitchen')">
+                        <div class="zone-icon">🍳</div>
+                        <div class="zone-name">Kuchnia</div>
+                    </div>
+                    <div class="room-zone" data-zone="bedroom" onclick="moveToZone('bedroom')">
+                        <div class="zone-icon">🛏️</div>
+                        <div class="zone-name">Sypialnia</div>
+                    </div>
+                    <div class="room-zone" data-zone="bathroom" onclick="moveToZone('bathroom')">
+                        <div class="zone-icon">🚿</div>
+                        <div class="zone-name">Łazienka</div>
+                    </div>
+                    <div class="room-zone" data-zone="living" onclick="moveToZone('living')">
+                        <div class="zone-icon">🎮</div>
+                        <div class="zone-name">Salon</div>
+                    </div>
+                    <div class="room-zone" data-zone="work" onclick="moveToZone('work')">
+                        <div class="zone-icon">💻</div>
+                        <div class="zone-name">Biuro</div>
+                    </div>
+                    <div class="room-zone" data-zone="garden" onclick="moveToZone('garden')">
+                        <div class="zone-icon">🌳</div>
+                        <div class="zone-name">Ogród</div>
+                    </div>
+                </div>
+
+                <div id="character">👤</div>
+
+                <div id="game-log">
+                    <div class="log-entry" style="color: var(--neon-cyan);">Witaj w Pixel Life Simulator! Wybierz akcję, aby rozpocząć...</div>
+                </div>
+            </div>
+
+            <!-- Actions Panel -->
+            <div id="actions-panel">
+                <div class="panel-title">AKCJE</div>
+                
+                <button class="action-btn" onclick="performAction('eat')">
+                    <span class="action-icon">🍕</span>
+                    <span>Jedz (+Głód)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('sleep')">
+                    <span class="action-icon">😴</span>
+                    <span>Śpij (+Energia)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('shower')">
+                    <span class="action-icon">🚿</span>
+                    <span>Prysznic (+Zdrowie)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('play')">
+                    <span class="action-icon">🎮</span>
+                    <span>Graj (+Zabawa)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('work')">
+                    <span class="action-icon">💼</span>
+                    <span>Pracuj (+$$$)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('exercise')">
+                    <span class="action-icon">🏃</span>
+                    <span>Trening (+Zdrowie)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('read')">
+                    <span class="action-icon">📚</span>
+                    <span>Czytaj (+Intelekt)</span>
+                </button>
+                
+                <button class="action-btn" onclick="performAction('dance')">
+                    <span class="action-icon">💃</span>
+                    <span>Tańcz (+Zabawa)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Overlay for mobile -->
+        <div id="overlay" onclick="closeMobilePanels()"></div>
+
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu" onclick="toggleMobileMenu()">📱</button>
+
+        <!-- Bottom Controls -->
+        <div id="bottom-controls">
+            <button class="control-btn" id="music-toggle" onclick="toggleMusic()">
+                <span id="music-icon">🔇</span>
+                <span id="music-text">Włącz muzykę</span>
+            </button>
+            
+            <button class="control-btn" onclick="toggleSound()">
+                <span id="sound-icon">🔊</span>
+                <span>Dźwięk</span>
+            </button>
+            
+            <button class="control-btn" onclick="resetGame()">
+                <span>🔄</span>
+                <span>Reset</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Audio Context for Web Audio API -->
+    <script>
+        // Game State
+        const gameState = {
+            stats: {
+                health: 80,
+                energy: 100,
+                hunger: 50,
+                fun: 70,
+                money: 1000,
+                intelligence: 50
+            },
+            time: {
+                day: 1,
+                hour: 8,
+                minute: 0
+            },
+            currentZone: 'living',
+            isPlaying: false,
+            musicEnabled: false,
+            soundEnabled: true
+        };
+
+        // Audio Context
+        let audioContext = null;
+        let musicOscillators = [];
+        let musicGain = null;
+
+        // Sound Effects using Web Audio API
+        const sounds = {
+            click: () => playTone(800, 0.1, 'square', 0.1),
+            success: () => {
+                playTone(523.25, 0.1, 'sine', 0.1);
+                setTimeout(() => playTone(659.25, 0.1, 'sine', 0.1), 100);
+                setTimeout(() => playTone(783.99, 0.2, 'sine', 0.1), 200);
+            },
+            error: () => {
+                playTone(200, 0.3, 'sawtooth', 0.1);
+                setTimeout(() => playTone(150, 0.3, 'sawtooth', 0.1), 100);
+            },
+            step: () => playTone(300, 0.05, 'triangle', 0.05),
+            eat: () => {
+                playTone(400, 0.1, 'sine', 0.1);
+                setTimeout(() => playTone(600, 0.1, 'sine', 0.1), 150);
+            },
+            sleep: () => {
+                playTone(300, 0.5, 'sine', 0.1);
+                setTimeout(() => playTone(250, 0.5, 'sine', 0.1), 400);
+            },
+            money: () => {
+                playTone(880, 0.1, 'square', 0.1);
+                setTimeout(() => playTone(1100, 0.2, 'square', 0.1), 100);
+            }
+        };
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTone(frequency, duration, type = 'sine', volume = 0.1) {
+            if (!gameState.soundEnabled || !audioContext) return;
+            
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.frequency.value = frequency;
+            osc.type = type;
+            
+            gain.gain.setValueAtTime(volume, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.start();
+            osc.stop(audioContext.currentTime + duration);
+        }
+
+        // Chiptune Music Generator
+        function playChiptuneMusic() {
+            if (!gameState.musicEnabled || !audioContext) return;
+            
+            const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+            const pattern = [0, 2, 4, 2, 0, 5, 4, 2, 0, 3, 5, 7, 5, 3, 1, 0];
+            let noteIndex = 0;
+            
+            function playNextNote() {
+                if (!gameState.musicEnabled) return;
+                
+                const freq = notes[pattern[noteIndex % pattern.length]];
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.frequency.value = freq;
+                osc.type = 'square';
+                
+                gain.gain.setValueAtTime(0.05, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.start();
+                osc.stop(audioContext.currentTime + 0.3);
+                
+                // Add harmony
+                if (noteIndex % 4 === 0) {
+                    const osc2 = audioContext.createOscillator();
+                    const gain2 = audioContext.createGain();
+                    osc2.frequency.value = freq / 2;
+                    osc2.type = 'triangle';
+                    gain2.gain.setValueAtTime(0.03, audioContext.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    osc2.connect(gain2);
+                    gain2.connect(audioContext.destination);
+                    osc2.start();
+                    osc2.stop(audioContext.currentTime + 0.5);
+                }
+                
+                noteIndex++;
+                setTimeout(playNextNote, 250);
+            }
+            
+            playNextNote();
+            
+            // Bass line
+            function playBass() {
+                if (!gameState.musicEnabled) return;
+                const bass = audioContext.createOscillator();
+                const bassGain = audioContext.createGain();
+                bass.frequency.value = 65.41;
+                bass.type = 'sawtooth';
+                bassGain.gain.setValueAtTime(0.08, audioContext.currentTime);
+                bassGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+                bass.connect(bassGain);
+                bassGain.connect(audioContext.destination);
+                bass.start();
+                bass.stop(audioContext.currentTime + 0.4);
+                setTimeout(playBass, 1000);
+            }
+            playBass();
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            gameState.isPlaying = true;
+            sounds.success();
+            updateCharacterPosition();
+            startGameLoop();
+            addLog('Gra rozpoczęta! Twoja przygoda zaczyna się teraz.', 'success');
+        }
+
+        function toggleMusic() {
+            gameState.musicEnabled = !gameState.musicEnabled;
+            const btn = document.getElementById('music-toggle');
+            const icon = document.getElementById('music-icon');
+            const text = document.getElementById('music-text');
+            
+            if (gameState.musicEnabled) {
+                btn.classList.add('active');
+                icon.textContent = '🔊';
+                text.textContent = 'Muzyka ON';
+                playChiptuneMusic();
+                addLog('Muzyka włączona', 'info');
+            } else {
+                btn.classList.remove('active');
+                icon.textContent = '🔇';
+                text.textContent = 'Muzyka OFF';
+                addLog('Muzyka wyłączona', 'info');
+            }
+            sounds.click();
+        }
+
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            icon.textContent = gameState.soundEnabled ? '🔊' : '🔇';
+            if (gameState.soundEnabled) sounds.click();
+        }
+
+        function moveToZone(zone) {
+            if (!gameState.isPlaying) return;
+            
+            gameState.currentZone = zone;
+            sounds.step();
+            updateCharacterPosition();
+            
+            // Update active zone
+            document.querySelectorAll('.room-zone').forEach(z => z.classList.remove('active'));
+            document.querySelector(`[data-zone="${zone}"]`).classList.add('active');
+            
+            const zoneNames = {
+                kitchen: 'Kuchnia',
+                bedroom: 'Sypialnia',
+                bathroom: 'Łazienka',
+                living: 'Salon',
+                work: 'Biuro',
+                garden: 'Ogród'
+            };
+            
+            addLog(`Przeniosłeś się do: ${zoneNames[zone]}`, 'info');
+            createParticles(event.clientX || window.innerWidth/2, event.clientY || window.innerHeight/2, '✨');
+        }
+
+        function updateCharacterPosition() {
+            const zone = document.querySelector(`[data-zone="${gameState.currentZone}"]`);
+            const char = document.getElementById('character');
+            const rect = zone.getBoundingClientRect();
+            const worldRect = document.getElementById('game-world').getBoundingClientRect();
+            
+            const centerX = rect.left - worldRect.left + rect.width / 2 - 30;
+            const centerY = rect.top - worldRect.top + rect.height / 2 - 30;
+            
+            char.style.left = centerX + 'px';
+            char.style.top = centerY + 'px';
+            char.classList.add('moving');
+            setTimeout(() => char.classList.remove('moving'), 500);
+        }
+
+        function performAction(action) {
+            if (!gameState.isPlaying) return;
+            sounds.click();
+            
+            const costs = {
+                eat: { hunger: -30, energy: -5, money: -50, health: 5 },
+                sleep: { energy: 50, hunger: 10, time: 480 },
+                shower: { health: 15, fun: 5, energy: -5 },
+                play: { fun: 25, energy: -10, hunger: 5 },
+                work: { money: 200, energy: -20, fun: -10, hunger: 10 },
+                exercise: { health: 20, energy: -15, hunger: 15, fun: 5 },
+                read: { intelligence: 10, fun: 5, energy: -5 },
+                dance: { fun: 20, energy: -10, health: 5 }
+            };
+            
+            const cost = costs[action];
+            
+            // Check requirements
+            if (action === 'eat' && gameState.stats.money < 50) {
+                addLog('Nie masz wystarczająco pieniędzy na jedzenie!', 'error');
+                sounds.error();
+                return;
+            }
+            
+            if (action === 'sleep' && gameState.currentZone !== 'bedroom') {
+                addLog('Musisz być w sypialni, aby spać!', 'error');
+                sounds.error();
+                return;
+            }
+            
+            if (action === 'work' && gameState.currentZone !== 'work') {
+                addLog('Musisz być w biurze, aby pracować!', 'error');
+                sounds.error();
+                return;
+            }
+            
+            // Apply effects
+            Object.keys(cost).forEach(stat => {
+                if (stat === 'time') {
+                    advanceTime(cost[stat]);
+                } else if (stat === 'money') {
+                    gameState.stats[stat] += cost[stat];
+                    if (cost[stat] > 0) sounds.money();
+                } else {
+                    gameState.stats[stat] = Math.max(0, Math.min(100, gameState.stats[stat] + cost[stat]));
+                }
+            });
+            
+            // Action specific effects
+            const actionEmojis = {
+                eat: ['🍕', '🍔', '🍎', '🥗'],
+                sleep: ['💤', '🌙', '⭐'],
+                shower: ['💧', '🧼', '🫧'],
+                play: ['🎮', '🎯', '🎲'],
+                work: ['💼', '💻', '📊'],
+                exercise: ['💪', '🏃', '⚡'],
+                read: ['📚', '📖', '💡'],
+                dance: ['💃', '🕺', '🎵']
+            };
+            
+            const emojis = actionEmojis[action];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            
+            createParticles(
+                document.getElementById('character').offsetLeft + 30,
+                document.getElementById('character').offsetTop,
+                randomEmoji
+            );
+            
+            if (action === 'eat') sounds.eat();
+            else if (action === 'sleep') sounds.sleep();
+            else sounds.success();
+            
+            const actionNames = {
+                eat: 'Zjada posiłek',
+                sleep: 'Śpi i regeneruje siły',
+                shower: 'Bierze prysznic',
+                play: 'Bawi się',
+                work: 'Pracuje',
+                exercise: 'Trenuje',
+                read: 'Czyta książkę',
+                dance: 'Tańczy'
+            };
+            
+            addLog(`${actionNames[action]} (+${Object.keys(cost).filter(k => cost[k] > 0 && k !== 'time').join(', +')})`, 'success');
+            updateUI();
+        }
+
+        function advanceTime(minutes) {
+            gameState.time.minute += minutes;
+            while (gameState.time.minute >= 60) {
+                gameState.time.minute -= 60;
+                gameState.time.hour++;
+            }
+            while (gameState.time.hour >= 24) {
+                gameState.time.hour -= 24;
+                gameState.time.day++;
+                addLog(`Nowy dzień! Dzień ${gameState.time.day}`, 'special');
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('health-bar').style.width = gameState.stats.health + '%';
+            document.getElementById('health-val').textContent = gameState.stats.health + '%';
+            
+            document.getElementById('energy-bar').style.width = gameState.stats.energy + '%';
+            document.getElementById('energy-val').textContent = gameState.stats.energy + '%';
+            
+            document.getElementById('hunger-bar').style.width = (100 - gameState.stats.hunger) + '%';
+            document.getElementById('hunger-val').textContent = (100 - gameState.stats.hunger) + '%';
+            
+            document.getElementById('fun-bar').style.width = gameState.stats.fun + '%';
+            document.getElementById('fun-val').textContent = gameState.stats.fun + '%';
+            
+            document.getElementById('money').textContent = gameState.stats.money;
+            document.getElementById('day').textContent = gameState.time.day;
+            document.getElementById('time').textContent = 
+                String(gameState.time.hour).padStart(2, '0') + ':' + 
+                String(gameState.time.minute).padStart(2, '0');
+            
+            // Update colors based on values
+            updateBarColor('health-bar', gameState.stats.health);
+            updateBarColor('energy-bar', gameState.stats.energy);
+            updateBarColor('hunger-bar', 100 - gameState.stats.hunger);
+            updateBarColor('fun-bar', gameState.stats.fun);
+        }
+
+        function updateBarColor(id, value) {
+            const bar = document.getElementById(id);
+            if (value < 30) {
+                bar.style.background = 'linear-gradient(90deg, #ff0040, #ff0000)';
+                bar.style.boxShadow = '0 0 10px #ff0000';
+            } else if (value < 60) {
+                bar.style.background = 'linear-gradient(90deg, #ffaa00, #ff8800)';
+                bar.style.boxShadow = '0 0 10px #ff8800';
+            } else {
+                bar.style.boxShadow = 'none';
+            }
+        }
+
+        function addLog(message, type = 'normal') {
+            const log = document.getElementById('game-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${String(gameState.time.hour).padStart(2,'0')}:${String(gameState.time.minute).padStart(2,'0')}] ${message}`;
+            
+            const colors = {
+                normal: '#fff',
+                success: 'var(--neon-green)',
+                error: '#ff0040',
+                info: 'var(--neon-cyan)',
+                special: 'var(--neon-magenta)'
+            };
+            
+            entry.style.color = colors[type] || colors.normal;
+            entry.style.borderLeftColor = colors[type] || colors.normal;
+            
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            
+            // Limit log entries
+            while (log.children.length > 20) {
+                log.removeChild(log.firstChild);
+            }
+        }
+
+        function createParticles(x, y, emoji) {
+            const container = document.getElementById('game-world');
+            for (let i = 0; i < 5; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.textContent = emoji;
+                particle.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 60) + 'px';
+                particle.style.animationDelay = (i * 0.1) + 's';
+                container.appendChild(particle);
+                setTimeout(() => particle.remove(), 3000);
+            }
+        }
+
+        function startGameLoop() {
+            setInterval(() => {
+                if (!gameState.isPlaying) return;
+                
+                // Decay stats over time
+                if (gameState.time.minute % 10 === 0) {
+                    gameState.stats.hunger = Math.min(100, gameState.stats.hunger + 1);
+                    gameState.stats.energy = Math.max(0, gameState.stats.energy - 0.5);
+                    gameState.stats.fun = Math.max(0, gameState.stats.fun - 0.5);
+                    
+                    if (gameState.stats.hunger > 80) {
+                        gameState.stats.health = Math.max(0, gameState.stats.health - 1);
+                    }
+                    if (gameState.stats.energy < 10) {
+                        gameState.stats.health = Math.max(0, gameState.stats.health - 1);
+                    }
+                    
+                    updateUI();
+                }
+                
+                // Advance time
+                advanceTime(1);
+                updateUI();
+                
+                // Check game over
+                if (gameState.stats.health <= 0) {
+                    addLog('KONIEC GRY! Twoja postaci zasłabła...', 'error');
+                    gameState.isPlaying = false;
+                    setTimeout(() => {
+                        if (confirm('Koniec gry! Zacząć od nowa?')) {
+                            resetGame();
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            gameState.stats = {
+                health: 80,
+                energy: 100,
+                hunger: 50,
+                fun: 70,
+                money: 1000,
+                intelligence: 50
+            };
+            gameState.time = { day: 1, hour: 8, minute: 0 };
+            gameState.currentZone = 'living';
+            gameState.isPlaying = true;
+            
+            document.querySelectorAll('.room-zone').forEach(z => z.classList.remove('active'));
+            updateCharacterPosition();
+            updateUI();
+            document.getElementById('game-log').innerHTML = '';
+            addLog('Gra zresetowana! Nowa przygoda rozpoczęta.', 'special');
+            sounds.success();
+        }
+
+        // Mobile Menu
+        let mobilePanelOpen = null;
+        
+        function toggleMobileMenu() {
+            if (mobilePanelOpen === 'stats') {
+                closeMobilePanels();
+                setTimeout(() => openPanel('actions'), 300);
+            } else if (mobilePanelOpen === 'actions') {
+                closeMobilePanels();
+            } else {
+                openPanel('stats');
+            }
+        }
+        
+        function openPanel(panel) {
+            closeMobilePanels();
+            document.getElementById(`${panel}-panel`).classList.add('open');
+            document.getElementById('overlay').classList.add('show');
+            mobilePanelOpen = panel;
+        }
+        
+        function closeMobilePanels() {
+            document.getElementById('stats-panel').classList.remove('open');
+            document.getElementById('actions-panel').classList.remove('open');
+            document.getElementById('overlay').classList.remove('show');
+            mobilePanelOpen = null;
+        }
+
+        // Swipe support
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        
+        document.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+        
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchEndX - touchStartX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0 && mobilePanelOpen !== 'stats') {
+                    openPanel('stats');
+                } else if (diff < 0 && mobilePanelOpen !== 'actions') {
+                    openPanel('actions');
+                }
+            }
+        }
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            if (gameState.isPlaying) {
+                updateCharacterPosition();
+            }
+        });
+
+        // Prevent zoom on mobile
+        document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('gesturechange', e => e.preventDefault());
+        document.addEventListener('gestureend', e => e.preventDefault());
+    </script>
+</body>
+</html>
